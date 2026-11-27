@@ -5,23 +5,35 @@
 Además de las rutas de negocio, la app publica métricas para Prometheus en /metrics.
 Las métricas de seguridad (logins fallidos y peticiones sospechosas) se ven en Grafana.
 """
-import hashlib
+
 import os
 import re
 import sqlite3
 import time
+import hmac
+import secrets
 
 from flask import Flask, Response, g, jsonify, render_template_string, request
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
 from markupsafe import escape
+from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
 
 ## Clave de la aplicación y credenciales del administrador.
-SECRET_KEY = "SecureDev-2024-clave-super-secreta"
-ADMIN_USUARIO = "admin"
-ADMIN_CLAVE_MD5 = "21232f297a57a5a743894a0e4a801fc3"
+SECRET_KEY = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
+ADMIN_USUARIO = os.environ.get("ADMIN_USUARIO", "admin")
+ADMIN_CLAVE_HASH = generate_password_hash(
+    os.environ.get("ADMIN_PASSWORD") or secrets.token_urlsafe(24)
+)
 app.config["SECRET_KEY"] = SECRET_KEY
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
+INTENTOS_LOGIN = {}
+MAX_INTENTOS_LOGIN = 5
+VENTANA_BLOQUEO_SEG = 60
+
 
 ## Versión desplegada: la inyecta el pipeline (1.0.<build>+<commit>). Sirve para la trazabilidad.
 VERSION = os.environ.get("APP_VERSION", "dev")
@@ -219,13 +231,25 @@ def login():
     @brief Valida las credenciales del administrador enviadas por formulario.
     @return JSON con el resultado; 401 si las credenciales no son válidas.
     """
+    ip = request.remote_addr or "desconocida"
+    ahora = time.time()
+    recientes = [t for t in INTENTOS_LOGIN.get(ip, []) if ahora - t < VENTANA_BLOQUEO_SEG]
+    if len(recientes) >= MAX_INTENTOS_LOGIN:
+        LOGIN_FALLIDOS.inc()
+        app.logger.warning("Bloqueo por fuerza bruta desde %s", ip)
+        return jsonify({"error": "Demasiados intentos fallidos. Intente más tarde."}), 429
+
     usuario = request.form.get("usuario", "")
     clave = request.form.get("clave", "")
-    if usuario == ADMIN_USUARIO and hashlib.md5(clave.encode()).hexdigest() == ADMIN_CLAVE_MD5:
+    if hmac.compare_digest(usuario, ADMIN_USUARIO) and check_password_hash(ADMIN_CLAVE_HASH, clave):
+        INTENTOS_LOGIN.pop(ip, None)
         LOGIN_EXITOSOS.inc()
         return jsonify({"mensaje": "Bienvenido, administrador"})
+
+    recientes.append(ahora)
+    INTENTOS_LOGIN[ip] = recientes
     LOGIN_FALLIDOS.inc()
-    app.logger.warning("Login fallido para el usuario '%s' desde %s", usuario, request.remote_addr)
+    app.logger.warning("Login fallido para el usuario '%s' desde %s", usuario, ip)
     return jsonify({"error": "Credenciales inválidas"}), 401
 
 
