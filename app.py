@@ -13,7 +13,7 @@ import time
 import hmac
 import secrets
 
-from flask import Flask, Response, g, jsonify, render_template_string, request
+from flask import Flask, Response, g, jsonify, render_template_string, request, session
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
 from markupsafe import escape
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -76,10 +76,12 @@ PORTADA = """<!doctype html>
 </ul>
 <h2>Buscar alumno</h2>
 <form action="/alumnos/buscar" method="get">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <input name="nombre" value="Ana"> <button type="submit">Buscar</button>
 </form>
 <h2>Acceso administrador</h2>
 <form action="/login" method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <input name="usuario" value="admin"> <input name="clave" type="password" value="">
   <button type="submit">Entrar</button>
 </form>
@@ -154,7 +156,9 @@ def portada():
     @brief Portada HTML con enlaces y formularios del sistema.
     @return Página HTML.
     """
-    return render_template_string(PORTADA, version=VERSION)
+    if "csrf_token" not in session:
+        session["csrf_token"] = secrets.token_urlsafe(32)
+    return render_template_string(PORTADA, version=VERSION, csrf_token=session["csrf_token"])
 
 
 @app.route("/hello")
@@ -239,8 +243,14 @@ def login():
         app.logger.warning("Bloqueo por fuerza bruta desde %s", ip)
         return jsonify({"error": "Demasiados intentos fallidos. Intente más tarde."}), 429
 
+    token_form = request.form.get("csrf_token", "")
+    token_sesion = session.get("csrf_token", "")
+    if not token_sesion or not hmac.compare_digest(token_form, token_sesion):
+        return jsonify({"error": "Token CSRF inválido o ausente"}), 403
+
     usuario = request.form.get("usuario", "")
     clave = request.form.get("clave", "")
+    
     if hmac.compare_digest(usuario, ADMIN_USUARIO) and check_password_hash(ADMIN_CLAVE_HASH, clave):
         INTENTOS_LOGIN.pop(ip, None)
         LOGIN_EXITOSOS.inc()
