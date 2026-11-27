@@ -1,6 +1,6 @@
 # Registro de seguridad · Sistema Alumnos
 
-Estudiante: ____________________   Repositorio: ____________________   Fecha: __________
+Estudiante: ANTONIA FAUNDES   Repositorio: https://github.com/Atto9752/Parcial_3_Ciberseguridad   Fecha: 27-11-26
 
 Completa este registro a medida que avanzas. Cada fila debe poder seguirse hasta un **build de Jenkins**
 y un **commit** (usa el identificador `VULN-xx` en el mensaje del commit).
@@ -49,10 +49,22 @@ y un **commit** (usa el identificador `VULN-xx` en el mensaje del commit).
 
 ## 6. Trazabilidad
 
-Pega aquí (o adjunta) el `TRAZABILIDAD.md` del último build y completa un recorrido por cada actividad del pipeline:
+
+| Build | Fecha (UTC) | Versión | Commit | Mensaje del commit | Pruebas | Bandit H/M/L | pip-audit | ZAP H/M/L | Resultado | Producción |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 2026-11-27 21:08 | 1.0.1+980b626 | `980b626` | Add files via upload | 9/9 OK | n/a | n/a | n/a | SUCCESS | 1.0.1+980b626 |
+| 2 | 2026-11-27 21:19 | 1.0.2+63f48ce | `63f48ce` | integraciones | 9/9 OK | 2/2/0 | 19 vuln. | 3/3/1 | UNSTABLE | no desplegado |
+| 3 | 2026-11-27 21:19 | 1.0.3+63f48ce | `63f48ce` | integraciones | 9/9 OK | 2/2/0 | 19 vuln. | 3/3/1 | UNSTABLE | no desplegado |
+| 4 | 2026-11-27 22:30 | 1.0.4+45a6984 | `45a6984` | Vuln6 | 9/9 OK | 0/1/0 | 19 vuln. | 0/0/0 | UNSTABLE | no desplegado |
+| 5 | 2026-11-27 22:37 | 1.0.5+45a6984 | `45a6984` | Vuln6 | 9/9 OK | 0/1/0 | 19 vuln. | 0/0/0 | UNSTABLE | no desplegado |
+| 6 | 2026-11-27 22:39 | 1.0.6+45a6984 | `45a6984` | Vuln6 | 9/9 OK | 0/1/0 | 19 vuln. | 0/0/0 | UNSTABLE | no desplegado |
+| 7 | 2026-11-27 22:48 | 1.0.7+681b037 | `681b037` | Pequeña correccion Vuln2 | 9/9 OK | 0/0/0 | 19 vuln. | 0/0/0 | UNSTABLE | no desplegado |
+| 8 | 2026-11-27 23:42 | 1.0.8+e5308a7 | `e5308a7` | Actualizacion dependencias | 9/9 OK | 0/0/0 | 0 vuln. | 0/0/0 | SUCCESS | 1.0.8+e5308a7 |
+
 
 | Actividad | Hallazgo | Build que lo detectó | Commit / PR que lo resolvió | Build que lo verificó | Versión en producción |
 |---|---|---|---|---|---|
-| Revisión de seguridad (Bandit) | | #__ | | #__ | |
-| Prueba automatizada (OWASP ZAP) | | #__ | | #__ | |
-| Gestión de dependencias (Dependabot) | | #__ | PR #__ | #__ | |
+| Revisión de seguridad (Bandit) | SQL Injection (CWE-89) / MD5 (CWE-327) / debug=True | #1 | | Vuln2, Vuln3 y Vuln6 | #8|
+| Prueba automatizada (OWASP ZAP) | XSS en /hello, SQLi, falta de Anti-CSRF y cabeceras CSP | #1 | | Vuln1,Vuln2, Vuln4 y Vuln5   | #8|
+| Gestión de dependencias (Dependabot) | Vulnerabilidades en Flask, Werkzeug, Jinja2 y gunicorn | #1| PR de dependabot| #__ | #8|
+
