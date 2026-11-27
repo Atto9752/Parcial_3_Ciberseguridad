@@ -227,7 +227,6 @@ def buscar_alumnos():
     @return JSON con los alumnos encontrados.
     """
     nombre = request.args.get("nombre", "")
-    consulta = f"SELECT * FROM alumnos WHERE nombre LIKE '%{nombre}%'"
     try:
         filas = conectar().execute(
             "SELECT * FROM alumnos WHERE nombre LIKE ?", (f"%{nombre}%",)
